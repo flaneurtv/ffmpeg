@@ -312,8 +312,7 @@ RUN  \
         curl -sLO https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
         tar -jx --strip-components=1 -f ffmpeg-${FFMPEG_VERSION}.tar.bz2
 
-ENV     DECKLINK_SDK_VERSION=10.11.4 \
-        DESKTOP_VIDEO_VERSION=10.11.4a9
+ENV     DECKLINK_SDK_VERSION=10.11.4
 
 RUN     apt-get install -yq --no-install-recommends unzip
 
@@ -379,15 +378,17 @@ MAINTAINER  Julien Rottenberg <julien@rottenberg.info>
 
 CMD         ["--help"]
 ENTRYPOINT  ["ffmpeg"]
-ENV         LD_LIBRARY_PATH=/usr/local/lib
+ENV         LD_LIBRARY_PATH=/usr/local/lib \
+            DESKTOPVIDEO_VERSION=10.11.4a9
 
 COPY --from=build /usr/local /usr/local/
 
 RUN \
         apt-get -yqq update && \
-        apt-get install -yq --no-install-recommends ca-certificates unzip \
+        apt-get install -yq --no-install-recommends ca-certificates unzip curl && \
         apt-get autoremove -y && \
-        apt-get clean -y
+        apt-get clean -y && \
+        rm -rf /var/lib/apt/lists/*
 
 RUN \
         DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
