@@ -19,7 +19,7 @@ FROM base as build
 ARG        PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig
 ARG        LD_LIBRARY_PATH=/opt/ffmpeg/lib
 ARG        PREFIX=/opt/ffmpeg
-ARG        MAKEFLAGS="-j8"
+ARG        MAKEFLAGS="-j$(nproc)"
 
 ENV         FFMPEG_VERSION=4.1.3     \
             FDKAAC_VERSION=0.1.5      \
@@ -379,6 +379,7 @@ MAINTAINER  Julien Rottenberg <julien@rottenberg.info>
 CMD         ["--help"]
 ENTRYPOINT  ["ffmpeg"]
 ENV         LD_LIBRARY_PATH=/usr/local/lib \
+            DECKLINK_SDK_VERSION=10.11.4 \
             DESKTOPVIDEO_VERSION=10.11.4a9
 
 COPY --from=build /usr/local /usr/local/
@@ -394,7 +395,7 @@ RUN \
         DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
         curl -sLO http://s3.eu-central-1.amazonaws.com/s3.fluxmedia.at/blackmagic/desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64.zip && \
         unzip desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64.zip && \
-        cp -a desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64/* / \
+        cp -a desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64/* / && \
         rm -rf ${DIR}
 
 # Let's make sure the app built correctly
