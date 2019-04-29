@@ -312,7 +312,8 @@ RUN  \
         curl -sLO https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
         tar -jx --strip-components=1 -f ffmpeg-${FFMPEG_VERSION}.tar.bz2
 
-ENV     DECKLINK_SDK_VERSION=10.11.4
+ENV     DECKLINK_SDK_VERSION=10.11.4 \
+        DESKTOPVIDEO_VERSION=10.11.4a9
 
 RUN     apt-get install -yq --no-install-recommends unzip
 
