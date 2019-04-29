@@ -388,7 +388,7 @@ COPY --from=build /usr/local /usr/local/
 
 RUN \
         apt-get -yqq update && \
-        apt-get install -yq --no-install-recommends ca-certificates unzip curl && \
+        apt-get install -yq --no-install-recommends ca-certificates unzip curl libc++1 libc++abi1 && \
         apt-get autoremove -y && \
         apt-get clean -y && \
         rm -rf /var/lib/apt/lists/*
