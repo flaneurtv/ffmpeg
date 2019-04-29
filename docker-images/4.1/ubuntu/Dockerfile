@@ -393,7 +393,7 @@ RUN \
         DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
         curl -sLO http://s3.eu-central-1.amazonaws.com/s3.fluxmedia.at/blackmagic/desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64.zip && \
         unzip desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64.zip && \
-        cp -a desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64/* /
+        cp -a desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64/* / \
         rm -rf ${DIR}
 
 # Let's make sure the app built correctly
