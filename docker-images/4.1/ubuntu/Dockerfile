@@ -312,11 +312,21 @@ RUN  \
         curl -sLO https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
         tar -jx --strip-components=1 -f ffmpeg-${FFMPEG_VERSION}.tar.bz2
 
+ENV     DECKLINK_SDK_VERSION=11.1 \
+        DESKTOP_VIDEO_VERSION=11.1a11
 
+RUN     apt-get install -yq --no-install-recommends unzip
+
+RUN \
+        DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
+        curl -sLO http://s3.eu-central-1.amazonaws.com/s3.fluxmedia.at/blackmagic/decklink-sdk-include-${DECKLINK_SDK_VERSION}.zip && \
+        unzip decklink-sdk-include-${DECKLINK_SDK_VERSION}.zip && \
+        ln -s decklink-sdk-include-${DECKLINK_SDK_VERSION} include
 
 RUN \
         DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && \
         ./configure \
+        --enable-decklink \
         --disable-debug \
         --disable-doc \
         --disable-ffplay \
@@ -345,8 +355,8 @@ RUN \
         --enable-postproc \
         --enable-small \
         --enable-version3 \
-        --extra-cflags="-I${PREFIX}/include" \
-        --extra-ldflags="-L${PREFIX}/lib" \
+        --extra-cflags="-I${PREFIX}/include -I/tmp/blackmagic/include/" \
+        --extra-ldflags="-L${PREFIX}/lib -L/tmp/blackmagic/include/" \
         --extra-libs=-ldl \
         --prefix="${PREFIX}" && \
         make && \
@@ -372,6 +382,19 @@ ENTRYPOINT  ["ffmpeg"]
 ENV         LD_LIBRARY_PATH=/usr/local/lib
 
 COPY --from=build /usr/local /usr/local/
+
+RUN \
+        apt-get -yqq update && \
+        apt-get install -yq --no-install-recommends ca-certificates unzip \
+        apt-get autoremove -y && \
+        apt-get clean -y
+
+RUN \
+        DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
+        curl -sLO http://s3.eu-central-1.amazonaws.com/s3.fluxmedia.at/blackmagic/desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64.zip && \
+        unzip desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64.zip && \
+        cp -a desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64/* /
+        rm -rf ${DIR}
 
 # Let's make sure the app built correctly
 # Convenient to verify on https://hub.docker.com/r/jrottenberg/ffmpeg/builds/ console output
