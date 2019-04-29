@@ -19,7 +19,8 @@ FROM base as build
 ARG        PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig
 ARG        LD_LIBRARY_PATH=/opt/ffmpeg/lib
 ARG        PREFIX=/opt/ffmpeg
-ARG        MAKEFLAGS="-j$(nproc)"
+ARG        MAKEFLAGS="-j2"
+# set --build-arg MAKEFLAGS="-j17" on docker build, where 17 = number of cores + 1
 
 ENV         FFMPEG_VERSION=4.1.3     \
             FDKAAC_VERSION=0.1.5      \
