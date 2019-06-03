@@ -337,6 +337,9 @@ ENV     DECKLINK_SDK_VERSION=11.1 \
 
 RUN     apt-get install -yq --no-install-recommends unzip cuda-compiler-10-1 cuda-libraries-dev-10-1 tcl apt-utils
 
+RUN     apt-get install -yq --no-install-recommends cuda-nvcc-10-1
+ENV     CUDA_VERSION=10.1 
+
 RUN \
         DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
         curl -sLO http://s3.eu-central-1.amazonaws.com/s3.fluxmedia.at/blackmagic/decklink-sdk-include-${DECKLINK_SDK_VERSION}.zip && \
@@ -345,17 +348,19 @@ RUN \
 
 RUN \
   DIR=/tmp/hailvisio && \
-        cd ${DIR} ; \
-        git clone https://github.com/Haivision/srt.git ; \
-        cd ${DIR}/srt ; \
-        ./configure ; \
+        mkdir -p ${DIR} && \
+        cd ${DIR} && \
+        git clone https://github.com/Haivision/srt.git && \
+        cd ${DIR}/srt && \
+        ./configure && \
         make && \
-        make install ; \
+        make install && \
         rm -rf ${DIR}
 
 RUN \
         DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && \
-        export PATH=/usr/local/cuda/bin${PATH:+:${PATH}} && \
+        ls -l /usr/local/cuda-$CUDA_VERSION/bin && \
+        export PATH=/usr/local/cuda-$CUDA_VERSION/bin${PATH:+:${PATH}} && \
         ./configure \
         --enable-libsrt \
         --enable-decklink \
@@ -393,8 +398,8 @@ RUN \
         --enable-postproc \
         --enable-small \
         --enable-version3 \
-        --extra-cflags="-I${PREFIX}/include -I/tmp/blackmagic/include -I/usr/local/cuda/include" \
-        --extra-ldflags="-L${PREFIX}/lib -L/tmp/blackmagic/include -L/usr/local/cuda/lib64" \
+        --extra-cflags="-I${PREFIX}/include -I/tmp/blackmagic/include -I/usr/local/cuda-$CUDA_VERSION/include" \
+        --extra-ldflags="-L${PREFIX}/lib -L/tmp/blackmagic/include -L/usr/local/cuda-$CUDA_VERSION/lib64" \
         --extra-libs=-ldl \
         --prefix="${PREFIX}" && \
         make && \
@@ -439,7 +444,7 @@ RUN \
         apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
         dpkg -i cuda-repo-ubuntu1804_10.1.105-1_amd64.deb && \
         apt-get -yqq update && \
-        apt-get install -yq cuda-libraries-10-1 && \
+        apt-get install -yq cuda-libraries-10-1 cuda-compiler-10-1 cuda-libraries-dev-10-1 && \
         apt-get autoremove -y && \
         apt-get clean -y && \
         rm -rf /var/lib/apt/lists/* && \
@@ -460,3 +465,27 @@ RUN \
 
 # Let's make sure the app built correctly
 # Convenient to verify on https://hub.docker.com/r/jrottenberg/ffmpeg/builds/ console output
+
+#Install the project...
+#-- Install configuration: "Release"
+#-- Installing: /usr/local/lib/libsrt.so.1.3.2
+#-- Installing: /usr/local/lib/libsrt.so.1
+#-- Installing: /usr/local/lib/libsrt.so
+#-- Installing: /usr/local/lib/libsrt.a
+#-- Installing: /usr/local/include/srt/version.h
+#-- Installing: /usr/local/include/srt/srt.h
+#-- Installing: /usr/local/include/srt/logging_api.h
+#-- Installing: /usr/local/include/srt/platform_sys.h
+#-- Installing: /usr/local/include/srt/udt.h
+#-- Installing: /usr/local/include/srt/srt4udt.h
+#-- Installing: /usr/local/lib/pkgconfig/haisrt.pc
+#-- Installing: /usr/local/lib/pkgconfig/srt.pc
+#-- Installing: /usr/local/bin/srt-live-transmit
+#-- Up-to-date: /usr/local/bin/srt-live-transmit
+#-- Installing: /usr/local/bin/srt-file-transmit
+#-- Up-to-date: /usr/local/bin/srt-file-transmit
+#-- Installing: /usr/local/bin/srt-multiplex
+#-- Up-to-date: /usr/local/bin/srt-multiplex
+#-- Installing: /usr/local/bin/srt-tunnel
+#-- Up-to-date: /usr/local/bin/srt-tunnel
+#-- Installing: /usr/local/bin/srt-ffplay
