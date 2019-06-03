@@ -338,7 +338,7 @@ ENV     DECKLINK_SDK_VERSION=11.1 \
 RUN     apt-get install -yq --no-install-recommends unzip cuda-compiler-10-1 cuda-libraries-dev-10-1 tcl apt-utils
 
 RUN     apt-get install -yq --no-install-recommends cuda-nvcc-10-1
-ENV     CUDA_VERSION=10.1 
+ENV     CUDA_VERSION=10.1
 
 RUN \
         DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
@@ -425,7 +425,8 @@ ENTRYPOINT  ["ffmpeg"]
 ENV         LD_LIBRARY_PATH=/usr/local/lib \
             DECKLINK_SDK_VERSION=11.1 \
             DESKTOPVIDEO_VERSION=11.1a11 \
-            DEBIAN_FRONTEND=noninteractive
+            DEBIAN_FRONTEND=noninteractive \
+            CUDA_VERSION=10.1
 
 COPY --from=build /usr/local /usr/local/
 
@@ -444,7 +445,7 @@ RUN \
         apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
         dpkg -i cuda-repo-ubuntu1804_10.1.105-1_amd64.deb && \
         apt-get -yqq update && \
-        apt-get install -yq cuda-libraries-10-1 cuda-compiler-10-1 cuda-libraries-dev-10-1 && \
+        apt-get install -yq cuda-libraries-$CUDA_VERSION cuda-compiler-$CUDA_VERSION cuda-libraries-dev-$CUDA_VERSION && \
         apt-get autoremove -y && \
         apt-get clean -y && \
         rm -rf /var/lib/apt/lists/* && \
@@ -458,14 +459,15 @@ RUN \
         rm -rf ${DIR}
 
 RUN \
-        export PATH=/usr/local/cuda-10.1/bin${PATH:+:${PATH}} && \
-        export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}} && \
-        find /usr/local/cuda/ && \
-        ls -l /usr/local/cuda/
+        export PATH=/usr/local/cuda-$CUDA_VERSION/bin${PATH:+:${PATH}} && \
+        export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/cuda-$CUDA_VERSION/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}} && \
+        find /usr/local/cuda-$CUDA_VERSION/ && \
+        ls -l /usr/local/cuda-$CUDA_VERSION/
 
 # Let's make sure the app built correctly
 # Convenient to verify on https://hub.docker.com/r/jrottenberg/ffmpeg/builds/ console output
 
+# SRT libs ... to import
 #Install the project...
 #-- Install configuration: "Release"
 #-- Installing: /usr/local/lib/libsrt.so.1.3.2
