@@ -5,7 +5,7 @@
 # https://hub.docker.com/r/jrottenberg/ffmpeg/
 #
 #
-FROM        ubuntu:16.04 AS base
+FROM        ubuntu:18.04 AS base
 
 WORKDIR     /tmp/workdir
 
@@ -20,8 +20,9 @@ ARG        PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig
 ARG        LD_LIBRARY_PATH=/opt/ffmpeg/lib
 ARG        PREFIX=/opt/ffmpeg
 ARG        MAKEFLAGS="-j2"
+# set --build-arg MAKEFLAGS="-j17" on docker build, where 17 = number of cores + 1
 
-ENV         FFMPEG_VERSION=snapshot     \
+ENV         FFMPEG_VERSION=snapshot   \
             FDKAAC_VERSION=0.1.5      \
             LAME_VERSION=3.100        \
             LIBASS_VERSION=0.13.7     \
@@ -312,11 +313,58 @@ RUN  \
         curl -sLO https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
         tar -jx --strip-components=1 -f ffmpeg-${FFMPEG_VERSION}.tar.bz2
 
+RUN \
+	DIR=/tmp/nv-codec-headers && \
+        git clone https://github.com/FFmpeg/nv-codec-headers.git ${DIR} ; \
+        cd ${DIR} ; \
+        make ; \
+        make install ; \
+        rm -rf ${DIR}
 
+RUN \
+	DIR=/tmp/cuda && \
+        mkdir -p ${DIR} && \
+        cd ${DIR} && \
+        curl -sLO https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.105-1_amd64.deb && \
+        apt-get install -y gnupg && \
+        apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
+        dpkg -i cuda-repo-ubuntu1804_10.1.105-1_amd64.deb && \
+        apt-get update
+
+ENV     DECKLINK_SDK_VERSION=11.1 \
+        DESKTOPVIDEO_VERSION=11.1a11 \
+        DEBIAN_FRONTEND=noninteractive
+
+RUN     apt-get install -yq --no-install-recommends unzip cuda-compiler-10-1 cuda-libraries-dev-10-1 tcl apt-utils
+
+RUN \
+        DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
+        curl -sLO http://s3.eu-central-1.amazonaws.com/s3.fluxmedia.at/blackmagic/decklink-sdk-include-${DECKLINK_SDK_VERSION}.zip && \
+        unzip decklink-sdk-include-${DECKLINK_SDK_VERSION}.zip && \
+        ln -s decklink-sdk-include-${DECKLINK_SDK_VERSION} include
+
+RUN \
+  DIR=/tmp/hailvisio && \
+        cd ${DIR} ; \
+        git clone https://github.com/Haivision/srt.git ; \
+        cd ${DIR}/srt ; \
+        ./configure ; \
+        make && \
+        make install ; \
+        rm -rf ${DIR}
 
 RUN \
         DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && \
+        export PATH=/usr/local/cuda/bin${PATH:+:${PATH}} && \
         ./configure \
+        --enable-libsrt \
+        --enable-decklink \
+        --enable-cuda \
+        --enable-cuvid \
+        --enable-nvenc \
+        --enable-libnpp \
+        --enable-cuda-nvcc \
+        --enable-opencl \
         --disable-debug \
         --disable-doc \
         --disable-ffplay \
@@ -345,8 +393,8 @@ RUN \
         --enable-postproc \
         --enable-small \
         --enable-version3 \
-        --extra-cflags="-I${PREFIX}/include" \
-        --extra-ldflags="-L${PREFIX}/lib" \
+        --extra-cflags="-I${PREFIX}/include -I/tmp/blackmagic/include -I/usr/local/cuda/include" \
+        --extra-ldflags="-L${PREFIX}/lib -L/tmp/blackmagic/include -L/usr/local/cuda/lib64" \
         --extra-libs=-ldl \
         --prefix="${PREFIX}" && \
         make && \
@@ -362,16 +410,53 @@ RUN \
         ldd ${PREFIX}/bin/ffmpeg | grep opt/ffmpeg | cut -d ' ' -f 3 | xargs -i cp {} /usr/local/lib/ && \
         cp ${PREFIX}/bin/* /usr/local/bin/ && \
         cp -r ${PREFIX}/share/ffmpeg /usr/local/share/ && \
-        LD_LIBRARY_PATH=/usr/local/lib ffmpeg -buildconf
+        LD_LIBRARY_PATH=/usr/local/lib:/usr/local/cuda/lib64 ffmpeg -buildconf
 
 FROM        base AS release
 MAINTAINER  Julien Rottenberg <julien@rottenberg.info>
 
 CMD         ["--help"]
 ENTRYPOINT  ["ffmpeg"]
-ENV         LD_LIBRARY_PATH=/usr/local/lib
+ENV         LD_LIBRARY_PATH=/usr/local/lib \
+            DECKLINK_SDK_VERSION=11.1 \
+            DESKTOPVIDEO_VERSION=11.1a11 \
+            DEBIAN_FRONTEND=noninteractive
 
 COPY --from=build /usr/local /usr/local/
+
+RUN \
+        apt-get -yqq update && \
+        apt-get install -yq --no-install-recommends ca-certificates unzip curl libc++1 libc++abi1 gnupg && \
+        apt-get autoremove -y && \
+        apt-get clean -y && \
+        rm -rf /var/lib/apt/lists/*
+
+RUN \
+	      DIR=/tmp/cuda && \
+        mkdir -p ${DIR} && \
+        cd ${DIR} && \
+        curl -sLO https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.105-1_amd64.deb && \
+        apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
+        dpkg -i cuda-repo-ubuntu1804_10.1.105-1_amd64.deb && \
+        apt-get -yqq update && \
+        apt-get install -yq cuda-libraries-10-1 && \
+        apt-get autoremove -y && \
+        apt-get clean -y && \
+        rm -rf /var/lib/apt/lists/* && \
+        rm -r ${DIR}
+
+RUN \
+        DIR=/tmp/blackmagic && mkdir -p ${DIR} && cd ${DIR} && \
+        curl -sLO http://s3.eu-central-1.amazonaws.com/s3.fluxmedia.at/blackmagic/desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64.zip && \
+        unzip desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64.zip && \
+        cp -a desktopvideo-${DESKTOPVIDEO_VERSION}-x86_64/* / && \
+        rm -rf ${DIR}
+
+RUN \
+        export PATH=/usr/local/cuda-10.1/bin${PATH:+:${PATH}} && \
+        export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}} && \
+        find /usr/local/cuda/ && \
+        ls -l /usr/local/cuda/
 
 # Let's make sure the app built correctly
 # Convenient to verify on https://hub.docker.com/r/jrottenberg/ffmpeg/builds/ console output
